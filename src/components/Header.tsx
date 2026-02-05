@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import DaleButton from "./DaleButton";
 
 const Header = () => {
@@ -34,12 +35,16 @@ const Header = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          <DaleButton variant="ghost" size="sm" className="hidden sm:inline-flex">
-            Ingresar
-          </DaleButton>
-          <DaleButton variant="hero" size="sm">
-            Empezar
-          </DaleButton>
+          <Link to="/login">
+            <DaleButton variant="ghost" size="sm" className="hidden sm:inline-flex">
+              Ingresar
+            </DaleButton>
+          </Link>
+          <Link to="/onboarding">
+            <DaleButton variant="hero" size="sm">
+              Empezar
+            </DaleButton>
+          </Link>
         </div>
       </div>
     </motion.header>
