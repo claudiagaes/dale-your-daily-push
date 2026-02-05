@@ -104,6 +104,15 @@
                  </div>
                </div>
  
+            <div className="flex justify-end mt-1">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+
                <DaleButton
                  type="submit"
                  variant="hero"
