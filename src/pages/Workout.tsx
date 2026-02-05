@@ -1,10 +1,14 @@
- import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
  import { motion } from "framer-motion";
  import { useNavigate } from "react-router-dom";
  import { Progress } from "@/components/ui/progress";
  import DaleButton from "@/components/DaleButton";
  import { Play, CheckCircle2, Clock, Calendar, Trophy, Home } from "lucide-react";
 import confetti from "canvas-confetti";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
  
  const workoutData = {
    title: "Core de fuego",
@@ -14,50 +18,125 @@ import confetti from "canvas-confetti";
    coachOutro: "¡Increíble! Hoy cumpliste. Eso vale más de lo que crees. Mañana seguimos.",
  };
  
+interface UserProgress {
+  id: string;
+  programa: string;
+  dia_actual: number;
+  total_dias: number;
+  dias_completados: number[];
+}
+
  const Workout = () => {
    const navigate = useNavigate();
-   const [currentDay, setCurrentDay] = useState(1);
-   const [totalDays] = useState(28);
+  const { user, loading: authLoading } = useAuth();
+  const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
    const [isCompleted, setIsCompleted] = useState(false);
    const [isPlaying, setIsPlaying] = useState(false);
-   const [programName, setProgramName] = useState("Abdomen en 28 días");
+  const [isSaving, setIsSaving] = useState(false);
  
-   useEffect(() => {
-     const savedDay = localStorage.getItem("dale_current_day");
-     const savedOnboarding = localStorage.getItem("dale_onboarding");
-     
-     if (savedDay) {
-       setCurrentDay(parseInt(savedDay));
+  const fetchProgress = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("user_progress")
+        .select("id, programa, dia_actual, total_dias, dias_completados")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setUserProgress({
+          id: data.id,
+          programa: data.programa,
+          dia_actual: data.dia_actual,
+          total_dias: data.total_dias,
+          dias_completados: data.dias_completados || [],
+        });
+      } else {
+        // No progress found, redirect to onboarding
+        toast.info("Primero elige tu programa de entrenamiento");
+        navigate("/onboarding");
+      }
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+      toast.error("Error al cargar tu progreso");
+    } finally {
+      setIsLoading(false);
      }
-     
-     if (savedOnboarding) {
-       const answers = JSON.parse(savedOnboarding);
-       const programs: Record<string, string> = {
-         abdomen: "Abdomen en 28 días",
-         gluteos: "Sube pompa en 28 días",
-         fuerza: "Fuerza total en 30 días",
-         cardio: "Cardio en casa 21 días",
-       };
-       setProgramName(programs[answers.objetivo] || "Abdomen en 28 días");
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      toast.info("Inicia sesión para ver tu entrenamiento");
+      navigate("/login");
+      return;
      }
-   }, []);
+
+    fetchProgress();
+  }, [user, authLoading, fetchProgress, navigate]);
  
-   const progress = (currentDay / totalDays) * 100;
+  const currentDay = userProgress?.dia_actual || 1;
+  const totalDays = userProgress?.total_dias || 28;
+  const programName = userProgress?.programa || "Tu programa";
+  const progress = (currentDay / totalDays) * 100;
  
    const handleStartWorkout = () => {
      setIsPlaying(true);
    };
  
-   const handleCompleteWorkout = () => {
+  const handleCompleteWorkout = async () => {
+    if (!user || !userProgress) return;
+
      setIsPlaying(false);
-     setIsCompleted(true);
-     const nextDay = currentDay + 1;
-     localStorage.setItem("dale_current_day", nextDay.toString());
-    
-    // Trigger confetti celebration
+    setIsSaving(true);
+
+    try {
+      const nextDay = currentDay + 1;
+      const updatedDaysCompleted = [...(userProgress.dias_completados || []), currentDay];
+      const isFinished = nextDay > totalDays;
+
+      const { error } = await supabase
+        .from("user_progress")
+        .update({
+          dia_actual: isFinished ? totalDays : nextDay,
+          dias_completados: updatedDaysCompleted,
+          fecha_ultimo_entrenamiento: new Date().toISOString(),
+          completado: isFinished,
+        })
+        .eq("id", userProgress.id);
+
+      if (error) throw error;
+
+      setUserProgress({
+        ...userProgress,
+        dia_actual: nextDay,
+        dias_completados: updatedDaysCompleted,
+      });
+
+      setIsCompleted(true);
+
+      // Trigger confetti celebration
+      triggerConfetti();
+
+      toast.success("¡Día completado!");
+    } catch (error) {
+      console.error("Error saving progress:", error);
+      toast.error("Error al guardar tu progreso");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const triggerConfetti = () => {
     const duration = 3000;
     const end = Date.now() + duration;
-
     const colors = ["#3E9FFF", "#59D68D", "#F6AD55", "#38B2AC"];
 
     const frame = () => {
@@ -85,10 +164,31 @@ import confetti from "canvas-confetti";
    };
  
    const handleNextDay = () => {
-     setCurrentDay((prev) => prev + 1);
      setIsCompleted(false);
+    fetchProgress();
    };
  
+  // Loading state
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="p-4 md:p-6 border-b border-border/50">
+          <div className="container-dale flex items-center justify-between">
+            <span className="text-2xl font-extrabold text-motivational">Dale</span>
+          </div>
+        </header>
+        <main className="flex-1 flex flex-col px-4 py-6 md:py-10">
+          <div className="container-dale max-w-lg mx-auto w-full space-y-6">
+            <Skeleton className="h-8 w-48 mx-auto" />
+            <Skeleton className="h-12 w-64 mx-auto" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-96 w-full rounded-2xl" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
    return (
      <div className="min-h-screen bg-background flex flex-col">
        {/* Header */}
@@ -204,14 +304,25 @@ import confetti from "canvas-confetti";
                    {/* Action Button */}
                    <div className="mt-auto">
                      {!isPlaying ? (
-                       <DaleButton variant="hero" size="lg" onClick={handleStartWorkout} className="w-full">
+                        <DaleButton 
+                          variant="hero" 
+                          size="lg" 
+                          onClick={handleStartWorkout} 
+                          className="w-full"
+                        >
                          <Play className="w-5 h-5 mr-2" />
                          Empezar
                        </DaleButton>
                      ) : (
-                       <DaleButton variant="hero" size="lg" onClick={handleCompleteWorkout} className="w-full">
+                        <DaleButton 
+                          variant="hero" 
+                          size="lg" 
+                          onClick={handleCompleteWorkout} 
+                          className="w-full"
+                          disabled={isSaving}
+                        >
                          <CheckCircle2 className="w-5 h-5 mr-2" />
-                         Marcar como completado
+                          {isSaving ? "Guardando..." : "Marcar como completado"}
                        </DaleButton>
                      )}
                    </div>
@@ -281,9 +392,15 @@ import confetti from "canvas-confetti";
                  transition={{ delay: 0.5 }}
                  className="space-y-3 w-full max-w-sm"
                >
-                 <DaleButton variant="hero" size="lg" onClick={handleNextDay} className="w-full">
-                   Ver día {currentDay + 1}
-                 </DaleButton>
+                  {currentDay < totalDays ? (
+                    <DaleButton variant="hero" size="lg" onClick={handleNextDay} className="w-full">
+                      Ver día {currentDay + 1}
+                    </DaleButton>
+                  ) : (
+                    <DaleButton variant="hero" size="lg" onClick={() => navigate("/")} className="w-full">
+                      ¡Programa completado! 🎉
+                    </DaleButton>
+                  )}
                  <DaleButton variant="outline" onClick={() => navigate("/")} className="w-full">
                    Volver al inicio
                  </DaleButton>
