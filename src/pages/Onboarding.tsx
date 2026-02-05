@@ -1,4 +1,4 @@
- import { useState } from "react";
+import { useState, useEffect } from "react";
  import { motion, AnimatePresence } from "framer-motion";
  import { useNavigate } from "react-router-dom";
  import { Progress } from "@/components/ui/progress";
@@ -6,6 +6,9 @@
  import { Label } from "@/components/ui/label";
  import DaleButton from "@/components/DaleButton";
  import { Target, Activity, Clock, ChevronRight, ChevronLeft } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
  
  interface Question {
    id: string;
@@ -61,14 +64,23 @@
  
  const Onboarding = () => {
    const navigate = useNavigate();
+  const { user } = useAuth();
    const [currentStep, setCurrentStep] = useState(0);
    const [answers, setAnswers] = useState<Record<string, string>>({});
    const [showResult, setShowResult] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
  
    const progress = ((currentStep + 1) / questions.length) * 100;
    const currentQuestion = questions[currentStep];
    const canProceed = answers[currentQuestion?.id];
  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      // Allow viewing onboarding, but will need to login to save
+    }
+  }, [user]);
+
    const handleNext = () => {
      if (currentStep < questions.length - 1) {
        setCurrentStep(currentStep + 1);
@@ -83,11 +95,58 @@
      }
    };
  
-   const handleStartProgram = () => {
-     // In the future, save to database
-     localStorage.setItem("dale_onboarding", JSON.stringify(answers));
-     localStorage.setItem("dale_current_day", "1");
-     navigate("/entrenamiento");
+  const handleStartProgram = async () => {
+    // If not logged in, redirect to register
+    if (!user) {
+      // Save answers temporarily
+      localStorage.setItem("dale_onboarding", JSON.stringify(answers));
+      toast.info("Crea tu cuenta para guardar tu progreso");
+      navigate("/registro");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const program = programAssignment[answers.objetivo] || programAssignment.abdomen;
+
+      // Update user profile with onboarding data
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          objetivo: answers.objetivo,
+          nivel: answers.nivel,
+          tiempo_disponible: answers.tiempo,
+          programa_asignado: program.name,
+        })
+        .eq("user_id", user.id);
+
+      if (profileError) throw profileError;
+
+      // Create user progress entry
+      const { error: progressError } = await supabase
+        .from("user_progress")
+        .upsert({
+          user_id: user.id,
+          programa: program.name,
+          dia_actual: 1,
+          total_dias: program.duration,
+          dias_completados: [],
+          fecha_inicio: new Date().toISOString(),
+        }, {
+          onConflict: "user_id,programa",
+        });
+
+      if (progressError) throw progressError;
+
+      toast.success("¡Tu plan está listo!");
+      navigate("/entrenamiento");
+    } catch (error) {
+      console.error("Error saving onboarding:", error);
+      toast.error("Hubo un error al guardar tu plan");
+    } finally {
+      setIsSaving(false);
+    }
    };
  
    const assignedProgram = programAssignment[answers.objetivo] || programAssignment.abdomen;
@@ -250,8 +309,14 @@
  
                  {/* CTA */}
                  <div className="space-y-4 pt-4">
-                   <DaleButton variant="hero" size="lg" onClick={handleStartProgram} className="w-full">
-                     Empezar ahora
+                    <DaleButton 
+                      variant="hero" 
+                      size="lg" 
+                      onClick={handleStartProgram} 
+                      className="w-full"
+                      disabled={isSaving}
+                    >
+                      {isSaving ? "Guardando..." : user ? "Empezar ahora" : "Crear cuenta y empezar"}
                    </DaleButton>
                    <p className="text-sm text-muted-foreground">
                      Sin excusas. Sin confusión. Tu rutina te espera.
