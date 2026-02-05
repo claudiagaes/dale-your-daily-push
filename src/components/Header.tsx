@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import DaleButton from "./DaleButton";
-import { Menu, X, LogOut, Dumbbell } from "lucide-react";
+import { Menu, X, LogOut, Dumbbell, UserCircle } from "lucide-react";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -58,6 +58,12 @@ const Header = () => {
                   <DaleButton variant="hero" size="sm">
                     <Dumbbell className="w-4 h-4 mr-1" />
                     Mi entrenamiento
+                  </DaleButton>
+                </Link>
+                <Link to="/perfil" className="hidden sm:block">
+                  <DaleButton variant="ghost" size="sm">
+                    <UserCircle className="w-4 h-4 mr-1" />
+                    Perfil
                   </DaleButton>
                 </Link>
                 <DaleButton variant="ghost" size="sm" onClick={handleSignOut} className="hidden sm:flex">
@@ -147,6 +153,12 @@ const Header = () => {
                     <DaleButton variant="hero" className="w-full justify-center">
                       <Dumbbell className="w-4 h-4 mr-2" />
                       Mi entrenamiento
+                    </DaleButton>
+                  </Link>
+                  <Link to="/perfil" onClick={closeMenu}>
+                    <DaleButton variant="ghost" className="w-full justify-center">
+                      <UserCircle className="w-4 h-4 mr-2" />
+                      Mi perfil
                     </DaleButton>
                   </Link>
                   <DaleButton variant="ghost" className="w-full justify-center" onClick={handleSignOut}>

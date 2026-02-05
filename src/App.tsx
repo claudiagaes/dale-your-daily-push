@@ -10,6 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import Workout from "./pages/Workout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/entrenamiento" element={<Workout />} />
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Register />} />
+            <Route path="/perfil" element={<Profile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
