@@ -10,7 +10,18 @@
  import { Label } from "@/components/ui/label";
  import { Skeleton } from "@/components/ui/skeleton";
  import { toast } from "@/hooks/use-toast";
- import { User, Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save } from "lucide-react";
+import { User, Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
  
  interface ProfileData {
    display_name: string | null;
@@ -49,6 +60,7 @@
    const [isSaving, setIsSaving] = useState(false);
    const [editedName, setEditedName] = useState("");
    const [editedBio, setEditedBio] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
  
    useEffect(() => {
      if (!authLoading && !user) {
@@ -119,6 +131,56 @@
      });
    };
  
+  const handleChangeProgram = async () => {
+    if (!user) return;
+
+    setIsResetting(true);
+
+    // Delete existing progress
+    const { error: progressError } = await supabase
+      .from("user_progress")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (progressError) {
+      toast({
+        title: "Error",
+        description: "No pudimos reiniciar tu progreso",
+        variant: "destructive",
+      });
+      setIsResetting(false);
+      return;
+    }
+
+    // Clear program assignment in profile
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        objetivo: null,
+        nivel: null,
+        tiempo_disponible: null,
+        programa_asignado: null,
+      })
+      .eq("user_id", user.id);
+
+    if (profileError) {
+      toast({
+        title: "Error",
+        description: "No pudimos actualizar tu perfil",
+        variant: "destructive",
+      });
+      setIsResetting(false);
+      return;
+    }
+
+    toast({
+      title: "¡Listo!",
+      description: "Ahora puedes elegir un nuevo programa",
+    });
+
+    navigate("/onboarding");
+  };
+
    const hasChanges = profile && (
      (editedName.trim() || null) !== profile.display_name ||
      (editedBio.trim() || null) !== profile.bio
@@ -251,6 +313,52 @@
                      </p>
                    </div>
                  </div>
+
+                {/* Change Program Button */}
+                <div className="pt-4 border-t border-border">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button
+                        className="w-full flex items-center justify-between p-4 rounded-xl border border-destructive/30 bg-destructive/5 hover:bg-destructive/10 transition-colors group"
+                        disabled={isResetting}
+                      >
+                        <div className="flex items-center gap-3">
+                          <RefreshCw className="w-5 h-5 text-destructive" />
+                          <div className="text-left">
+                            <p className="font-medium text-foreground">Cambiar de programa</p>
+                            <p className="text-sm text-muted-foreground">Tu progreso actual se reiniciará</p>
+                          </div>
+                        </div>
+                        <ArrowLeft className="w-4 h-4 text-muted-foreground rotate-180 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-warning" />
+                          ¿Cambiar de programa?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-left space-y-2">
+                          <p>
+                            Esta acción reiniciará <strong>todo tu progreso actual</strong> en "{profile?.programa_asignado}".
+                          </p>
+                          <p>
+                            Volverás al inicio para elegir un nuevo objetivo y programa. Este cambio no se puede deshacer.
+                          </p>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleChangeProgram}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isResetting ? "Reiniciando..." : "Sí, cambiar programa"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
                </div>
              </section>
  
