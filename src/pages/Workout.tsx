@@ -4,6 +4,7 @@
  import { Progress } from "@/components/ui/progress";
  import DaleButton from "@/components/DaleButton";
  import { Play, CheckCircle2, Clock, Calendar, Trophy, Home } from "lucide-react";
+import confetti from "canvas-confetti";
  
  const workoutData = {
    title: "Core de fuego",
@@ -52,6 +53,35 @@
      setIsCompleted(true);
      const nextDay = currentDay + 1;
      localStorage.setItem("dale_current_day", nextDay.toString());
+    
+    // Trigger confetti celebration
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    const colors = ["#3E9FFF", "#59D68D", "#F6AD55", "#38B2AC"];
+
+    const frame = () => {
+      confetti({
+        particleCount: 4,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: colors,
+      });
+      confetti({
+        particleCount: 4,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: colors,
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
    };
  
    const handleNextDay = () => {
