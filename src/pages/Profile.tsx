@@ -1,8 +1,11 @@
  import { useState, useEffect } from "react";
+ import { useQueryClient } from "@tanstack/react-query";
  import { useNavigate } from "react-router-dom";
  import { motion } from "framer-motion";
  import { useAuth } from "@/hooks/useAuth";
  import { supabase } from "@/integrations/supabase/client";
+ import { useProfile, useUpdateProfile, ProfileData } from "@/hooks/useProfile";
+ import { useUserProgress, useDeleteUserProgress } from "@/hooks/useUserProgress";
  import Header from "@/components/Header";
  import DaleButton from "@/components/DaleButton";
  import { Input } from "@/components/ui/input";
@@ -27,26 +30,6 @@ import {
 } from "@/components/ui/alert-dialog";
  import AvatarUpload from "@/components/AvatarUpload";
  
- interface ProfileData {
-   display_name: string | null;
-   email: string | null;
-   bio: string | null;
-   objetivo: string | null;
-   nivel: string | null;
-   tiempo_disponible: string | null;
-   programa_asignado: string | null;
-   avatar_url: string | null;
- }
- 
-interface ProgressData {
-  dia_actual: number;
-  total_dias: number;
-  dias_completados: number[] | null;
-  fecha_inicio: string;
-  fecha_ultimo_entrenamiento: string | null;
-  completado: boolean;
-}
-
  const objetivoLabels: Record<string, string> = {
    gluteos: "Glúteos firmes",
    abdomen: "Abdomen definido",
@@ -69,95 +52,52 @@ interface ProgressData {
  const Profile = () => {
    const navigate = useNavigate();
    const { user, loading: authLoading } = useAuth();
-   const [profile, setProfile] = useState<ProfileData | null>(null);
-   const [isLoading, setIsLoading] = useState(true);
-   const [isSaving, setIsSaving] = useState(false);
+   const queryClient = useQueryClient();
+   
+   // React Query hooks
+   const { data: profile, isLoading: profileLoading } = useProfile();
+   const { data: progress, isLoading: progressLoading } = useUserProgress();
+   const updateProfile = useUpdateProfile();
+   const deleteProgress = useDeleteUserProgress();
+   
    const [editedName, setEditedName] = useState("");
    const [editedBio, setEditedBio] = useState("");
   const [isResetting, setIsResetting] = useState(false);
-  const [progress, setProgress] = useState<ProgressData | null>(null);
  
+   // Sincronizar estado local con datos del perfil
    useEffect(() => {
-     if (!authLoading && user) {
-       fetchProfile();
-      fetchProgress();
+     if (profile) {
+       setEditedName(profile.display_name || "");
+       setEditedBio(profile.bio || "");
      }
-   }, [user, authLoading, navigate]);
- 
-   const fetchProfile = async () => {
-     if (!user) return;
- 
-     const { data, error } = await supabase
-       .from("profiles")
-       .select("display_name, email, bio, objetivo, nivel, tiempo_disponible, programa_asignado, avatar_url")
-       .eq("user_id", user.id)
-       .maybeSingle();
- 
-     if (error) {
-       toast({
-         title: "Error",
-         description: "No pudimos cargar tu perfil",
-         variant: "destructive",
-       });
-       return;
-     }
- 
-     if (data) {
-       setProfile(data);
-       setEditedName(data.display_name || "");
-       setEditedBio(data.bio || "");
-     }
-     setIsLoading(false);
-   };
+   }, [profile]);
  
    const handleAvatarUpdate = (newUrl: string) => {
-     setProfile(prev => prev ? { ...prev, avatar_url: newUrl } : null);
+     queryClient.setQueryData(["profile", user?.id], (old: ProfileData | null) => 
+       old ? { ...old, avatar_url: newUrl } : null
+     );
    };
- 
-  const fetchProgress = async () => {
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("user_progress")
-      .select("dia_actual, total_dias, dias_completados, fecha_inicio, fecha_ultimo_entrenamiento, completado")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!error && data) {
-      setProgress(data);
-    }
-  };
 
    const handleSave = async () => {
      if (!user) return;
  
-     setIsSaving(true);
- 
-     const { error } = await supabase
-       .from("profiles")
-       .update({
+     try {
+       await updateProfile.mutateAsync({
          display_name: editedName.trim() || null,
          bio: editedBio.trim() || null,
-       })
-       .eq("user_id", user.id);
+       });
  
-     setIsSaving(false);
- 
-     if (error) {
+       toast({
+         title: "¡Guardado!",
+         description: "Tu perfil se actualizó correctamente",
+       });
+     } catch (error) {
        toast({
          title: "Error",
          description: "No pudimos guardar los cambios",
          variant: "destructive",
        });
-       return;
      }
- 
-     setProfile(prev => prev ? { ...prev, display_name: editedName.trim() || null, bio: editedBio.trim() || null } : null);
- 
-     toast({
-       title: "¡Guardado!",
-       description: "Tu perfil se actualizó correctamente",
-     });
    };
  
   const handleChangeProgram = async () => {
@@ -165,51 +105,37 @@ interface ProgressData {
 
     setIsResetting(true);
 
-    // Delete existing progress
-    const { error: progressError } = await supabase
-      .from("user_progress")
-      .delete()
-      .eq("user_id", user.id);
+     try {
+       // Delete existing progress
+       await deleteProgress.mutateAsync();
+ 
+       // Clear program assignment in profile
+       await updateProfile.mutateAsync({
+        objetivo: null,
+        nivel: null,
+        tiempo_disponible: null,
+        programa_asignado: null,
+       });
 
-    if (progressError) {
+       toast({
+         title: "¡Listo!",
+         description: "Ahora puedes elegir un nuevo programa",
+       });
+ 
+       navigate("/onboarding");
+     } catch (error) {
       toast({
         title: "Error",
         description: "No pudimos reiniciar tu progreso",
         variant: "destructive",
       });
+     } finally {
       setIsResetting(false);
-      return;
     }
-
-    // Clear program assignment in profile
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        objetivo: null,
-        nivel: null,
-        tiempo_disponible: null,
-        programa_asignado: null,
-      })
-      .eq("user_id", user.id);
-
-    if (profileError) {
-      toast({
-        title: "Error",
-        description: "No pudimos actualizar tu perfil",
-        variant: "destructive",
-      });
-      setIsResetting(false);
-      return;
-    }
-
-    toast({
-      title: "¡Listo!",
-      description: "Ahora puedes elegir un nuevo programa",
-    });
-
-    navigate("/onboarding");
   };
 
+   const isLoading = profileLoading || progressLoading;
+ 
    const hasChanges = profile && (
      (editedName.trim() || null) !== profile.display_name ||
      (editedBio.trim() || null) !== profile.bio
@@ -504,10 +430,10 @@ interface ProgressData {
                  <DaleButton
                    variant="hero"
                    onClick={handleSave}
-                   disabled={isSaving}
+                    disabled={updateProfile.isPending}
                    className="w-full"
                  >
-                   {isSaving ? (
+                    {updateProfile.isPending ? (
                      "Guardando..."
                    ) : (
                      <>

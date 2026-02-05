@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+ import { useState, useEffect } from "react";
  import { motion } from "framer-motion";
  import { useNavigate } from "react-router-dom";
  import { Progress } from "@/components/ui/progress";
@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
  import { Play, CheckCircle2, Clock, Calendar, Trophy, Home } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+ import { useUserProgress, useUpdateUserProgress } from "@/hooks/useUserProgress";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
  
@@ -18,115 +18,60 @@ import { Skeleton } from "@/components/ui/skeleton";
    coachOutro: "¡Increíble! Hoy cumpliste. Eso vale más de lo que crees. Mañana seguimos.",
  };
  
-interface UserProgress {
-  id: string;
-  programa: string;
-  dia_actual: number;
-  total_dias: number;
-  dias_completados: number[];
-}
-
  const Workout = () => {
    const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+   
+   // React Query hooks
+   const { data: userProgress, isLoading, refetch } = useUserProgress();
+   const updateProgress = useUpdateUserProgress();
+   
    const [isCompleted, setIsCompleted] = useState(false);
    const [isPlaying, setIsPlaying] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
- 
-  const fetchProgress = useCallback(async () => {
-    if (!user) return;
 
-    try {
-      const { data, error } = await supabase
-        .from("user_progress")
-        .select("id, programa, dia_actual, total_dias, dias_completados")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setUserProgress({
-          id: data.id,
-          programa: data.programa,
-          dia_actual: data.dia_actual,
-          total_dias: data.total_dias,
-          dias_completados: data.dias_completados || [],
-        });
-      } else {
-        // No progress found, redirect to onboarding
+   // Redirigir a onboarding si no hay progreso
+   useEffect(() => {
+     if (!isLoading && !userProgress && user) {
         toast.info("Primero elige tu programa de entrenamiento");
         navigate("/onboarding");
-      }
-    } catch (error) {
-      console.error("Error fetching progress:", error);
-      toast.error("Error al cargar tu progreso");
-    } finally {
-      setIsLoading(false);
      }
-  }, [user, navigate]);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-     if (user) {
-       fetchProgress();
-     }
-  }, [user, authLoading, fetchProgress, navigate]);
+   }, [isLoading, userProgress, user, navigate]);
  
-  const currentDay = userProgress?.dia_actual || 1;
-  const totalDays = userProgress?.total_dias || 28;
-  const programName = userProgress?.programa || "Tu programa";
-  const progress = (currentDay / totalDays) * 100;
+   const currentDay = userProgress?.dia_actual || 1;
+   const totalDays = userProgress?.total_dias || 28;
+   const programName = userProgress?.programa || "Tu programa";
+   const progressPercent = (currentDay / totalDays) * 100;
  
    const handleStartWorkout = () => {
      setIsPlaying(true);
    };
  
   const handleCompleteWorkout = async () => {
-    if (!user || !userProgress) return;
+     if (!userProgress) return;
 
      setIsPlaying(false);
-    setIsSaving(true);
 
     try {
       const nextDay = currentDay + 1;
       const updatedDaysCompleted = [...(userProgress.dias_completados || []), currentDay];
       const isFinished = nextDay > totalDays;
 
-      const { error } = await supabase
-        .from("user_progress")
-        .update({
+       await updateProgress.mutateAsync({
+         id: userProgress.id,
+         updates: {
           dia_actual: isFinished ? totalDays : nextDay,
           dias_completados: updatedDaysCompleted,
           fecha_ultimo_entrenamiento: new Date().toISOString(),
           completado: isFinished,
-        })
-        .eq("id", userProgress.id);
-
-      if (error) throw error;
-
-      setUserProgress({
-        ...userProgress,
-        dia_actual: nextDay,
-        dias_completados: updatedDaysCompleted,
+         },
       });
 
       setIsCompleted(true);
-
-      // Trigger confetti celebration
       triggerConfetti();
-
       toast.success("¡Día completado!");
     } catch (error) {
       console.error("Error saving progress:", error);
       toast.error("Error al guardar tu progreso");
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -161,7 +106,7 @@ interface UserProgress {
  
    const handleNextDay = () => {
      setIsCompleted(false);
-    fetchProgress();
+     refetch();
    };
  
   // Loading state
@@ -221,9 +166,9 @@ interface UserProgress {
                <div className="mb-8">
                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
                    <span>Tu progreso</span>
-                   <span>{Math.round(progress)}%</span>
+                     <span>{Math.round(progressPercent)}%</span>
                  </div>
-                 <Progress value={progress} className="h-3" />
+                   <Progress value={progressPercent} className="h-3" />
                </div>
  
                {/* Video/Workout Card */}
@@ -315,10 +260,10 @@ interface UserProgress {
                           size="lg" 
                           onClick={handleCompleteWorkout} 
                           className="w-full"
-                          disabled={isSaving}
+                         disabled={updateProgress.isPending}
                         >
                          <CheckCircle2 className="w-5 h-5 mr-2" />
-                          {isSaving ? "Guardando..." : "Marcar como completado"}
+                         {updateProgress.isPending ? "Guardando..." : "Marcar como completado"}
                        </DaleButton>
                      )}
                    </div>
