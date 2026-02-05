@@ -14,7 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          nivel: string | null
+          objetivo: string | null
+          programa_asignado: string | null
+          tiempo_disponible: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          nivel?: string | null
+          objetivo?: string | null
+          programa_asignado?: string | null
+          tiempo_disponible?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          nivel?: string | null
+          objetivo?: string | null
+          programa_asignado?: string | null
+          tiempo_disponible?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_progress: {
+        Row: {
+          completado: boolean
+          created_at: string
+          dia_actual: number
+          dias_completados: number[] | null
+          fecha_inicio: string
+          fecha_ultimo_entrenamiento: string | null
+          id: string
+          programa: string
+          total_dias: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completado?: boolean
+          created_at?: string
+          dia_actual?: number
+          dias_completados?: number[] | null
+          fecha_inicio?: string
+          fecha_ultimo_entrenamiento?: string | null
+          id?: string
+          programa: string
+          total_dias?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completado?: boolean
+          created_at?: string
+          dia_actual?: number
+          dias_completados?: number[] | null
+          fecha_inicio?: string
+          fecha_ultimo_entrenamiento?: string | null
+          id?: string
+          programa?: string
+          total_dias?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
