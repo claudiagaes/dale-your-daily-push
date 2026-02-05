@@ -2,6 +2,18 @@
  import { supabase } from "@/integrations/supabase/client";
  import { User, Session } from "@supabase/supabase-js";
  
+ // Manejar redirección después de OAuth
+ const handleOAuthRedirect = () => {
+   const redirectPath = sessionStorage.getItem("auth_redirect");
+   if (redirectPath) {
+     sessionStorage.removeItem("auth_redirect");
+     // Solo redirigir si estamos en la raíz (después del callback OAuth)
+     if (window.location.pathname === "/" || window.location.pathname === "") {
+       window.location.href = redirectPath;
+     }
+   }
+ };
+ 
  interface AuthContextType {
    user: User | null;
    session: Session | null;
@@ -25,6 +37,11 @@
          setSession(session);
          setUser(session?.user ?? null);
          setLoading(false);
+         
+         // Manejar redirección después de login con OAuth
+         if (event === "SIGNED_IN" && session?.user) {
+           handleOAuthRedirect();
+         }
        }
      );
  

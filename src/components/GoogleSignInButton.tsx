@@ -5,13 +5,18 @@
  
  interface GoogleSignInButtonProps {
    className?: string;
+   redirectTo?: string;
  }
  
- const GoogleSignInButton = ({ className }: GoogleSignInButtonProps) => {
+ const GoogleSignInButton = ({ className, redirectTo }: GoogleSignInButtonProps) => {
    const [loading, setLoading] = useState(false);
  
    const handleGoogleSignIn = async () => {
      setLoading(true);
+     // Guardar la ruta de destino en sessionStorage para usar después del redirect OAuth
+     if (redirectTo) {
+       sessionStorage.setItem("auth_redirect", redirectTo);
+     }
      const { error } = await lovable.auth.signInWithOAuth("google", {
        redirect_uri: window.location.origin,
      });

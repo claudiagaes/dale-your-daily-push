@@ -78,12 +78,7 @@ interface ProgressData {
   const [progress, setProgress] = useState<ProgressData | null>(null);
  
    useEffect(() => {
-     if (!authLoading && !user) {
-       navigate("/login");
-       return;
-     }
- 
-     if (user) {
+     if (!authLoading && user) {
        fetchProfile();
       fetchProgress();
      }
