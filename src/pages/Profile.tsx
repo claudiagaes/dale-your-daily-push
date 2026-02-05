@@ -9,8 +9,11 @@
  import { Textarea } from "@/components/ui/textarea";
  import { Label } from "@/components/ui/label";
  import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
  import { toast } from "@/hooks/use-toast";
-import { User, Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle } from "lucide-react";
+import { User, Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle, Calendar, CheckCircle2, TrendingUp } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +36,15 @@ import {
    programa_asignado: string | null;
  }
  
+interface ProgressData {
+  dia_actual: number;
+  total_dias: number;
+  dias_completados: number[] | null;
+  fecha_inicio: string;
+  fecha_ultimo_entrenamiento: string | null;
+  completado: boolean;
+}
+
  const objetivoLabels: Record<string, string> = {
    gluteos: "Glúteos firmes",
    abdomen: "Abdomen definido",
@@ -61,6 +73,7 @@ import {
    const [editedName, setEditedName] = useState("");
    const [editedBio, setEditedBio] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+  const [progress, setProgress] = useState<ProgressData | null>(null);
  
    useEffect(() => {
      if (!authLoading && !user) {
@@ -70,6 +83,7 @@ import {
  
      if (user) {
        fetchProfile();
+      fetchProgress();
      }
    }, [user, authLoading, navigate]);
  
@@ -99,6 +113,20 @@ import {
      setIsLoading(false);
    };
  
+  const fetchProgress = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("user_progress")
+      .select("dia_actual, total_dias, dias_completados, fecha_inicio, fecha_ultimo_entrenamiento, completado")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      setProgress(data);
+    }
+  };
+
    const handleSave = async () => {
      if (!user) return;
  
@@ -362,6 +390,95 @@ import {
                </div>
              </section>
  
+            {/* Progress History Section */}
+            {progress && (
+              <section className="card-elevated mb-6">
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  Mi progreso
+                </h2>
+
+                <div className="space-y-4">
+                  {/* Progress Bar */}
+                  <div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Días completados</span>
+                      <span className="font-semibold">
+                        {progress.dias_completados?.length || 0} de {progress.total_dias}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={((progress.dias_completados?.length || 0) / progress.total_dias) * 100} 
+                      className="h-3"
+                    />
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-muted/50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        <span className="text-xs text-muted-foreground">Inicio</span>
+                      </div>
+                      <p className="font-medium text-sm">
+                        {format(new Date(progress.fecha_inicio), "d 'de' MMMM", { locale: es })}
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-muted/50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="w-4 h-4 text-secondary" />
+                        <span className="text-xs text-muted-foreground">Último entreno</span>
+                      </div>
+                      <p className="font-medium text-sm">
+                        {progress.fecha_ultimo_entrenamiento 
+                          ? format(new Date(progress.fecha_ultimo_entrenamiento), "d 'de' MMMM", { locale: es })
+                          : "Aún no empiezas"
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Completed Days Grid */}
+                  {progress.dias_completados && progress.dias_completados.length > 0 && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-3">Días completados</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: progress.total_dias }, (_, i) => i + 1).map((day) => {
+                          const isCompleted = progress.dias_completados?.includes(day);
+                          return (
+                            <div
+                              key={day}
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${
+                                isCompleted
+                                  ? "bg-secondary text-secondary-foreground"
+                                  : "bg-muted/50 text-muted-foreground"
+                              }`}
+                            >
+                              {isCompleted ? (
+                                <CheckCircle2 className="w-4 h-4" />
+                              ) : (
+                                day
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Completion Status */}
+                  {progress.completado && (
+                    <div className="p-4 bg-gradient-to-r from-secondary/20 to-primary/20 rounded-xl border border-secondary/30">
+                      <p className="font-semibold text-center text-lg">
+                        🎉 ¡Programa completado!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
              {/* Save Button */}
              {hasChanges && (
                <motion.div
