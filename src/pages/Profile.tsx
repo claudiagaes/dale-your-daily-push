@@ -1,0 +1,288 @@
+ import { useState, useEffect } from "react";
+ import { useNavigate } from "react-router-dom";
+ import { motion } from "framer-motion";
+ import { useAuth } from "@/hooks/useAuth";
+ import { supabase } from "@/integrations/supabase/client";
+ import Header from "@/components/Header";
+ import DaleButton from "@/components/DaleButton";
+ import { Input } from "@/components/ui/input";
+ import { Textarea } from "@/components/ui/textarea";
+ import { Label } from "@/components/ui/label";
+ import { Skeleton } from "@/components/ui/skeleton";
+ import { toast } from "@/hooks/use-toast";
+ import { User, Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save } from "lucide-react";
+ 
+ interface ProfileData {
+   display_name: string | null;
+   email: string | null;
+   bio: string | null;
+   objetivo: string | null;
+   nivel: string | null;
+   tiempo_disponible: string | null;
+   programa_asignado: string | null;
+ }
+ 
+ const objetivoLabels: Record<string, string> = {
+   gluteos: "Glúteos firmes",
+   abdomen: "Abdomen definido",
+   piernas: "Piernas fuertes",
+   general: "Tonificación general",
+ };
+ 
+ const nivelLabels: Record<string, string> = {
+   principiante: "Principiante",
+   intermedio: "Algo de experiencia",
+   avanzado: "Avanzado",
+ };
+ 
+ const tiempoLabels: Record<string, string> = {
+   "15min": "15 minutos",
+   "25min": "25 minutos",
+   "35min": "35 minutos",
+ };
+ 
+ const Profile = () => {
+   const navigate = useNavigate();
+   const { user, loading: authLoading } = useAuth();
+   const [profile, setProfile] = useState<ProfileData | null>(null);
+   const [isLoading, setIsLoading] = useState(true);
+   const [isSaving, setIsSaving] = useState(false);
+   const [editedName, setEditedName] = useState("");
+   const [editedBio, setEditedBio] = useState("");
+ 
+   useEffect(() => {
+     if (!authLoading && !user) {
+       navigate("/login");
+       return;
+     }
+ 
+     if (user) {
+       fetchProfile();
+     }
+   }, [user, authLoading, navigate]);
+ 
+   const fetchProfile = async () => {
+     if (!user) return;
+ 
+     const { data, error } = await supabase
+       .from("profiles")
+       .select("display_name, email, bio, objetivo, nivel, tiempo_disponible, programa_asignado")
+       .eq("user_id", user.id)
+       .maybeSingle();
+ 
+     if (error) {
+       toast({
+         title: "Error",
+         description: "No pudimos cargar tu perfil",
+         variant: "destructive",
+       });
+       return;
+     }
+ 
+     if (data) {
+       setProfile(data);
+       setEditedName(data.display_name || "");
+       setEditedBio(data.bio || "");
+     }
+     setIsLoading(false);
+   };
+ 
+   const handleSave = async () => {
+     if (!user) return;
+ 
+     setIsSaving(true);
+ 
+     const { error } = await supabase
+       .from("profiles")
+       .update({
+         display_name: editedName.trim() || null,
+         bio: editedBio.trim() || null,
+       })
+       .eq("user_id", user.id);
+ 
+     setIsSaving(false);
+ 
+     if (error) {
+       toast({
+         title: "Error",
+         description: "No pudimos guardar los cambios",
+         variant: "destructive",
+       });
+       return;
+     }
+ 
+     setProfile(prev => prev ? { ...prev, display_name: editedName.trim() || null, bio: editedBio.trim() || null } : null);
+ 
+     toast({
+       title: "¡Guardado!",
+       description: "Tu perfil se actualizó correctamente",
+     });
+   };
+ 
+   const hasChanges = profile && (
+     (editedName.trim() || null) !== profile.display_name ||
+     (editedBio.trim() || null) !== profile.bio
+   );
+ 
+   if (authLoading || isLoading) {
+     return (
+       <div className="min-h-screen bg-background">
+         <Header />
+         <main className="pt-24 pb-16">
+           <div className="container-dale max-w-2xl">
+             <Skeleton className="h-10 w-48 mb-8" />
+             <div className="space-y-6">
+               <Skeleton className="h-24 w-full rounded-2xl" />
+               <Skeleton className="h-40 w-full rounded-2xl" />
+               <Skeleton className="h-32 w-full rounded-2xl" />
+             </div>
+           </div>
+         </main>
+       </div>
+     );
+   }
+ 
+   return (
+     <div className="min-h-screen bg-background">
+       <Header />
+       <main className="pt-24 pb-16">
+         <div className="container-dale max-w-2xl">
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.5 }}
+           >
+             {/* Header */}
+             <div className="flex items-center gap-4 mb-8">
+               <button
+                 onClick={() => navigate(-1)}
+                 className="p-2 rounded-xl hover:bg-muted transition-colors"
+               >
+                 <ArrowLeft className="w-5 h-5" />
+               </button>
+               <h1 className="text-2xl md:text-3xl font-bold">Mi Perfil</h1>
+             </div>
+ 
+             {/* Editable Section */}
+             <section className="card-elevated mb-6">
+               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                 <User className="w-5 h-5 text-primary" />
+                 Información personal
+               </h2>
+ 
+               <div className="space-y-4">
+                 <div>
+                   <Label htmlFor="email" className="text-muted-foreground text-sm">
+                     Email
+                   </Label>
+                   <div className="flex items-center gap-2 mt-1 p-3 bg-muted/50 rounded-xl">
+                     <Mail className="w-4 h-4 text-muted-foreground" />
+                     <span className="text-foreground">{profile?.email || user?.email}</span>
+                   </div>
+                 </div>
+ 
+                 <div>
+                   <Label htmlFor="name">Nombre</Label>
+                   <Input
+                     id="name"
+                     value={editedName}
+                     onChange={(e) => setEditedName(e.target.value)}
+                     placeholder="Tu nombre"
+                     className="mt-1"
+                   />
+                 </div>
+ 
+                 <div>
+                   <Label htmlFor="bio">Bio</Label>
+                   <Textarea
+                     id="bio"
+                     value={editedBio}
+                     onChange={(e) => setEditedBio(e.target.value)}
+                     placeholder="Cuéntanos sobre ti y tus metas..."
+                     className="mt-1 min-h-[100px] resize-none"
+                   />
+                 </div>
+               </div>
+             </section>
+ 
+             {/* Program Info Section */}
+             <section className="card-elevated mb-6">
+               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                 <Award className="w-5 h-5 text-secondary" />
+                 Mi programa
+               </h2>
+ 
+               <div className="grid gap-4">
+                 {profile?.programa_asignado && (
+                   <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20">
+                     <p className="text-sm text-muted-foreground mb-1">Programa actual</p>
+                     <p className="text-lg font-semibold text-foreground">{profile.programa_asignado}</p>
+                   </div>
+                 )}
+ 
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                   <div className="p-3 bg-muted/50 rounded-xl">
+                     <div className="flex items-center gap-2 mb-1">
+                       <Target className="w-4 h-4 text-primary" />
+                       <span className="text-xs text-muted-foreground">Objetivo</span>
+                     </div>
+                     <p className="font-medium text-sm">
+                       {profile?.objetivo ? objetivoLabels[profile.objetivo] || profile.objetivo : "No definido"}
+                     </p>
+                   </div>
+ 
+                   <div className="p-3 bg-muted/50 rounded-xl">
+                     <div className="flex items-center gap-2 mb-1">
+                       <Dumbbell className="w-4 h-4 text-secondary" />
+                       <span className="text-xs text-muted-foreground">Nivel</span>
+                     </div>
+                     <p className="font-medium text-sm">
+                       {profile?.nivel ? nivelLabels[profile.nivel] || profile.nivel : "No definido"}
+                     </p>
+                   </div>
+ 
+                   <div className="p-3 bg-muted/50 rounded-xl">
+                     <div className="flex items-center gap-2 mb-1">
+                       <Clock className="w-4 h-4 text-primary" />
+                       <span className="text-xs text-muted-foreground">Tiempo</span>
+                     </div>
+                     <p className="font-medium text-sm">
+                       {profile?.tiempo_disponible ? tiempoLabels[profile.tiempo_disponible] || profile.tiempo_disponible : "No definido"}
+                     </p>
+                   </div>
+                 </div>
+               </div>
+             </section>
+ 
+             {/* Save Button */}
+             {hasChanges && (
+               <motion.div
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="sticky bottom-6"
+               >
+                 <DaleButton
+                   variant="hero"
+                   onClick={handleSave}
+                   disabled={isSaving}
+                   className="w-full"
+                 >
+                   {isSaving ? (
+                     "Guardando..."
+                   ) : (
+                     <>
+                       <Save className="w-5 h-5" />
+                       Guardar cambios
+                     </>
+                   )}
+                 </DaleButton>
+               </motion.div>
+             )}
+           </motion.div>
+         </div>
+       </main>
+     </div>
+   );
+ };
+ 
+ export default Profile;
