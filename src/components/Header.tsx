@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import DaleButton from "./DaleButton";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, Dumbbell } from "lucide-react";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    closeMenu();
+    navigate("/");
+  };
 
   return (
     <>
@@ -43,16 +52,33 @@ const Header = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link to="/login" className="hidden sm:block">
-              <DaleButton variant="ghost" size="sm">
-                Ingresar
-              </DaleButton>
-            </Link>
-            <Link to="/onboarding" className="hidden sm:block">
-              <DaleButton variant="hero" size="sm">
-                Empezar
-              </DaleButton>
-            </Link>
+            {user ? (
+              <>
+                <Link to="/entrenamiento" className="hidden sm:block">
+                  <DaleButton variant="hero" size="sm">
+                    <Dumbbell className="w-4 h-4 mr-1" />
+                    Mi entrenamiento
+                  </DaleButton>
+                </Link>
+                <DaleButton variant="ghost" size="sm" onClick={handleSignOut} className="hidden sm:flex">
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Salir
+                </DaleButton>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="hidden sm:block">
+                  <DaleButton variant="ghost" size="sm">
+                    Ingresar
+                  </DaleButton>
+                </Link>
+                <Link to="/onboarding" className="hidden sm:block">
+                  <DaleButton variant="hero" size="sm">
+                    Empezar
+                  </DaleButton>
+                </Link>
+              </>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -115,16 +141,33 @@ const Header = () => {
 
               <div className="h-px bg-border my-4" />
 
-              <Link to="/login" onClick={closeMenu}>
-                <DaleButton variant="ghost" className="w-full justify-center">
-                  Ingresar
-                </DaleButton>
-              </Link>
-              <Link to="/onboarding" onClick={closeMenu}>
-                <DaleButton variant="hero" className="w-full justify-center">
-                  Empezar
-                </DaleButton>
-              </Link>
+              {user ? (
+                <>
+                  <Link to="/entrenamiento" onClick={closeMenu}>
+                    <DaleButton variant="hero" className="w-full justify-center">
+                      <Dumbbell className="w-4 h-4 mr-2" />
+                      Mi entrenamiento
+                    </DaleButton>
+                  </Link>
+                  <DaleButton variant="ghost" className="w-full justify-center" onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Cerrar sesión
+                  </DaleButton>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={closeMenu}>
+                    <DaleButton variant="ghost" className="w-full justify-center">
+                      Ingresar
+                    </DaleButton>
+                  </Link>
+                  <Link to="/onboarding" onClick={closeMenu}>
+                    <DaleButton variant="hero" className="w-full justify-center">
+                      Empezar
+                    </DaleButton>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.nav>
         )}
