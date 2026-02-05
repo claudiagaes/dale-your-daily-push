@@ -11,7 +11,7 @@
  import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
  import { toast } from "@/hooks/use-toast";
-import { User, Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle, Calendar, CheckCircle2, TrendingUp } from "lucide-react";
+ import { Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle, Calendar, CheckCircle2, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+ import AvatarUpload from "@/components/AvatarUpload";
  
  interface ProfileData {
    display_name: string | null;
@@ -34,6 +35,7 @@ import {
    nivel: string | null;
    tiempo_disponible: string | null;
    programa_asignado: string | null;
+   avatar_url: string | null;
  }
  
 interface ProgressData {
@@ -92,7 +94,7 @@ interface ProgressData {
  
      const { data, error } = await supabase
        .from("profiles")
-       .select("display_name, email, bio, objetivo, nivel, tiempo_disponible, programa_asignado")
+       .select("display_name, email, bio, objetivo, nivel, tiempo_disponible, programa_asignado, avatar_url")
        .eq("user_id", user.id)
        .maybeSingle();
  
@@ -111,6 +113,10 @@ interface ProgressData {
        setEditedBio(data.bio || "");
      }
      setIsLoading(false);
+   };
+ 
+   const handleAvatarUpdate = (newUrl: string) => {
+     setProfile(prev => prev ? { ...prev, avatar_url: newUrl } : null);
    };
  
   const fetchProgress = async () => {
@@ -255,10 +261,24 @@ interface ProgressData {
  
              {/* Editable Section */}
              <section className="card-elevated mb-6">
-               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                 <User className="w-5 h-5 text-primary" />
-                 Información personal
-               </h2>
+               <div className="flex flex-col sm:flex-row items-center gap-6 mb-6">
+                 {user && (
+                   <AvatarUpload
+                     userId={user.id}
+                     currentAvatarUrl={profile?.avatar_url || null}
+                     displayName={editedName || profile?.display_name || null}
+                     onUploadComplete={handleAvatarUpdate}
+                   />
+                 )}
+                 <div className="text-center sm:text-left">
+                   <h2 className="text-xl font-semibold">
+                     {editedName || profile?.display_name || "Tu nombre"}
+                   </h2>
+                   <p className="text-sm text-muted-foreground">
+                     Toca el ícono de cámara para cambiar tu foto
+                   </p>
+                 </div>
+               </div>
  
                <div className="space-y-4">
                  <div>
