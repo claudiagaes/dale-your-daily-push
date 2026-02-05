@@ -1,6 +1,6 @@
  import { useState } from "react";
  import { motion } from "framer-motion";
- import { useNavigate, Link } from "react-router-dom";
+ import { useNavigate, Link, useLocation } from "react-router-dom";
  import { useAuth } from "@/hooks/useAuth";
  import DaleButton from "@/components/DaleButton";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
@@ -11,11 +11,15 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
  
  const Login = () => {
    const navigate = useNavigate();
+   const location = useLocation();
    const { signIn } = useAuth();
    const [email, setEmail] = useState("");
    const [password, setPassword] = useState("");
    const [showPassword, setShowPassword] = useState(false);
    const [loading, setLoading] = useState(false);
+ 
+   // Obtener la ruta de origen para redirigir después del login
+   const from = (location.state as { from?: string })?.from || "/entrenamiento";
  
    const handleSubmit = async (e: React.FormEvent) => {
      e.preventDefault();
@@ -31,7 +35,7 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
        });
      } else {
        toast.success("¡Bienvenido de vuelta!");
-       navigate("/entrenamiento");
+       navigate(from, { replace: true });
      }
  
      setLoading(false);
@@ -66,7 +70,7 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
  
            <div className="bg-card rounded-2xl border border-border p-6 md:p-8">
             {/* Google Sign In */}
-            <GoogleSignInButton className="w-full mb-6" />
+            <GoogleSignInButton className="w-full mb-6" redirectTo={from} />
 
             <div className="relative mb-6">
               <div className="absolute inset-0 flex items-center">

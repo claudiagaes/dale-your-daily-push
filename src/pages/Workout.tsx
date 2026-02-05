@@ -73,13 +73,9 @@ interface UserProgress {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
-      toast.info("Inicia sesión para ver tu entrenamiento");
-      navigate("/login");
-      return;
+     if (user) {
+       fetchProgress();
      }
-
-    fetchProgress();
   }, [user, authLoading, fetchProgress, navigate]);
  
   const currentDay = userProgress?.dia_actual || 1;
