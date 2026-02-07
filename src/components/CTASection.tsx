@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import DaleButton from "./DaleButton";
 
 const CTASection = () => {
+  const navigate = useNavigate();
   const benefits = [
     "Acceso a todos los programas",
     "Nuevas rutinas cada mes",
@@ -61,7 +63,7 @@ const CTASection = () => {
               ))}
             </div>
 
-            <DaleButton variant="hero" size="lg" className="w-full">
+            <DaleButton variant="hero" size="lg" className="w-full" onClick={() => navigate("/onboarding")}>
               Empezar ahora
               <ArrowRight className="w-5 h-5" />
             </DaleButton>
