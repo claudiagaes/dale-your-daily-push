@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const DALE_PRICE_ID = "price_1SyIX6KyItj8dCW2UJc6sBpJ";
+const DALE_PRICE_ID = "price_1SyJ2fKyItj8dCW2lpWZelv8";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
