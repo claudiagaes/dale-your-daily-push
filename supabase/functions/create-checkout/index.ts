@@ -48,7 +48,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/entrenamiento?checkout=success`,
+      success_url: `${origin}/pago-exitoso`,
       cancel_url: `${origin}/onboarding?checkout=canceled`,
     });
 
