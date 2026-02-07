@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
 import { Play, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import DaleButton from "./DaleButton";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
       {/* Background gradient */}
@@ -63,7 +65,7 @@ const HeroSection = () => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
           >
-            <DaleButton variant="hero" size="lg">
+            <DaleButton variant="hero" size="lg" onClick={() => navigate("/onboarding")}>
               <Play className="w-5 h-5" />
               Empezar por $75/mes
             </DaleButton>
