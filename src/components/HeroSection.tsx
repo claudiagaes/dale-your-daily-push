@@ -69,7 +69,7 @@ const HeroSection = () => {
               <Play className="w-5 h-5" />
               Empezar por $75/mes
             </DaleButton>
-            <DaleButton variant="outline">
+            <DaleButton variant="outline" onClick={() => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" })}>
               Ver cómo funciona
             </DaleButton>
           </motion.div>
