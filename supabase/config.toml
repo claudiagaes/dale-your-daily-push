@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.create-checkout]
 verify_jwt = false
+
+[functions.setup-stripe-product]
+verify_jwt = false
