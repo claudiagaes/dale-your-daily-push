@@ -1,11 +1,12 @@
- import { useState, useEffect } from "react";
- import { useQueryClient } from "@tanstack/react-query";
- import { useNavigate } from "react-router-dom";
- import { motion } from "framer-motion";
- import { useAuth } from "@/hooks/useAuth";
- import { supabase } from "@/integrations/supabase/client";
- import { useProfile, useUpdateProfile, ProfileData } from "@/hooks/useProfile";
- import { useUserProgress, useDeleteUserProgress } from "@/hooks/useUserProgress";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile, useUpdateProfile, ProfileData } from "@/hooks/useProfile";
+import { useUserProgress, useDeleteUserProgress } from "@/hooks/useUserProgress";
+import { useSubscription } from "@/hooks/useSubscription";
  import Header from "@/components/Header";
  import DaleButton from "@/components/DaleButton";
  import { Input } from "@/components/ui/input";
@@ -14,7 +15,7 @@
  import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
  import { toast } from "@/hooks/use-toast";
- import { Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle, Calendar, CheckCircle2, TrendingUp } from "lucide-react";
+ import { Mail, Target, Dumbbell, Clock, Award, ArrowLeft, Save, RefreshCw, AlertTriangle, Calendar, CheckCircle2, TrendingUp, CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -49,20 +50,22 @@ import {
    "35min": "35 minutos",
  };
  
- const Profile = () => {
-   const navigate = useNavigate();
-   const { user, loading: authLoading } = useAuth();
-   const queryClient = useQueryClient();
-   
-   // React Query hooks
-   const { data: profile, isLoading: profileLoading } = useProfile();
-   const { data: progress, isLoading: progressLoading } = useUserProgress();
-   const updateProfile = useUpdateProfile();
-   const deleteProgress = useDeleteUserProgress();
-   
-   const [editedName, setEditedName] = useState("");
-   const [editedBio, setEditedBio] = useState("");
-  const [isResetting, setIsResetting] = useState(false);
+const Profile = () => {
+    const navigate = useNavigate();
+    const { user, session, loading: authLoading } = useAuth();
+    const queryClient = useQueryClient();
+    
+    // React Query hooks
+    const { data: profile, isLoading: profileLoading } = useProfile();
+    const { data: progress, isLoading: progressLoading } = useUserProgress();
+    const { data: subscription, isLoading: subLoading } = useSubscription();
+    const updateProfile = useUpdateProfile();
+    const deleteProgress = useDeleteUserProgress();
+    
+    const [editedName, setEditedName] = useState("");
+    const [editedBio, setEditedBio] = useState("");
+    const [isResetting, setIsResetting] = useState(false);
+    const [isOpeningPortal, setIsOpeningPortal] = useState(false);
  
    // Sincronizar estado local con datos del perfil
    useEffect(() => {
@@ -134,7 +137,30 @@ import {
     }
   };
 
-   const isLoading = profileLoading || progressLoading;
+    const handleManageSubscription = async () => {
+      setIsOpeningPortal(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("customer-portal", {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+        if (error) throw error;
+        if (data?.url) {
+          window.location.href = data.url;
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No pudimos abrir el portal de suscripción",
+          variant: "destructive",
+        });
+      } finally {
+        setIsOpeningPortal(false);
+      }
+    };
+
+    const isLoading = profileLoading || progressLoading;
+
+
  
    const hasChanges = profile && (
      (editedName.trim() || null) !== profile.display_name ||
@@ -419,6 +445,81 @@ import {
                 </div>
               </section>
             )}
+
+            {/* Subscription Section */}
+            <section className="card-elevated mb-6">
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-primary" />
+                Mi suscripción
+              </h2>
+
+              {subLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">Verificando suscripción...</span>
+                </div>
+              ) : subscription?.subscribed ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-gradient-to-r from-secondary/10 to-primary/10 rounded-xl border border-secondary/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle2 className="w-5 h-5 text-secondary" />
+                      <span className="font-semibold text-foreground">Suscripción activa</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Dale - $75 MXN/mes
+                    </p>
+                  </div>
+
+                  {subscription.subscription_end && (
+                    <div className="p-3 bg-muted/50 rounded-xl">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Calendar className="w-4 h-4 text-primary" />
+                        <span className="text-xs text-muted-foreground">Próxima renovación</span>
+                      </div>
+                      <p className="font-medium text-sm">
+                        {format(new Date(subscription.subscription_end), "d 'de' MMMM yyyy", { locale: es })}
+                      </p>
+                    </div>
+                  )}
+
+                  <DaleButton
+                    variant="outline"
+                    onClick={handleManageSubscription}
+                    disabled={isOpeningPortal}
+                    className="w-full"
+                  >
+                    {isOpeningPortal ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Abriendo portal...
+                      </span>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-4 h-4" />
+                        Gestionar suscripción
+                      </>
+                    )}
+                  </DaleButton>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted/50 rounded-xl">
+                    <p className="font-medium text-foreground">Sin suscripción activa</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Suscríbete para acceder a todos los programas
+                    </p>
+                  </div>
+                  <DaleButton
+                    variant="hero"
+                    onClick={() => navigate("/onboarding")}
+                    className="w-full"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Suscribirme por $75/mes
+                  </DaleButton>
+                </div>
+              )}
+            </section>
 
              {/* Save Button */}
              {hasChanges && (

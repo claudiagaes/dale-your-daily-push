@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.setup-stripe-product]
 verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
